@@ -3,46 +3,9 @@ package windns
 import (
     "github.com/hashicorp/terraform/helper/schema"
     "runpwsh"
-    "bytes"
     "errors"
     "strings"
-    "text/template"
 )
-
-type DNSRecord struct {
-    Id string
-    ZoneName string
-    RecordType string
-    RecordName string
-    IPv4Address string
-    HostnameAlias string
-    DomainController string
-} 
-
-var createTemplate = `
-try { 
-    $newRecord = $record = Get-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -RRType '{{.RecordType}}' -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -ErrorAction Stop 
-} catch { $record = $null }; 
-if ($record -and $record.RecordType -eq '{{.RecordType}}') { 
-    Write-Host 'Existing Record Found, Modifying record.'
-    Switch ('{{.RecordType}}')
-    {
-        'A'     { $newRecord.RecordData.IPv4Address = '{{.IPv4Address }}' }
-        'CNAME' { $newRecord.RecordData.HostNameAlias = '{{.HostnameAlias}}' }
-    }
-    Set-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -OldInputObject $record -NewInputObject $newRecord -PassThru -ComputerName '{{.DomainController}}'
-}
-else {
-    if ($record) {
-        Remove-DnsServerResourceRecord -InputObject $record -ZoneName '{{.ZoneName}}' -ComputerName '{{.DomainController}}' -PassThru -Force
-    }
-    Write-Host 'Creating record.'
-    Switch ('{{.RecordType}}')
-    {
-        'A'     { Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -IPv4Address '{{.IPv4Address}}' }
-        'CNAME' { Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -HostNameAlias '{{.HostnameAlias}}' }
-    }
-}`
 
 func resourceWinDNSRecord() *schema.Resource {
     return &schema.Resource{
@@ -94,18 +57,7 @@ func resourceWinDNSRecordCreate(d *schema.ResourceData, m interface{}) error {
         DomainController: client.domain_controller,
     }
 
-    t := template.New("CreateTemplate")
-    t, err := t.Parse(createTemplate)
-    if err != nil {
-        return err
-    }
-
-    var createComandBuffer bytes.Buffer
-    if err := t.Execute(&createComandBuffer, record); err != nil {
-        return err
-    }
-
-    createCommand := createComandBuffer.String()
+    createCommand, err := getCreateCommand(record)
 
     switch record.RecordType {
         case "A":
