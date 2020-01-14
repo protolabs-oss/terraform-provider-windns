@@ -1,10 +1,29 @@
 # Terraform Windows DNS Provider
 
-This is the repository for a Terraform Windows DNS Provider, which you can use to create DNS records in Microsoft Windows DNS.
+This is the repository for a Terraform Windows DNS Provider, which can be used to create DNS records in Microsoft Windows DNS.
 
-The provider uses the [github.com/gorillalabs/go-powershell/backend](github.com/gorillalabs/go-powershell/backend) package to "shell out" to PowerShell, fire up a WinRM session, and perform the actual DNS work. I made this decision because the Go WinRM packages I was able to find only supported WinRM in Basic/Unencrypted mode, which is not doable in our environment. Shelling out to PowerShell is admittedly ugly, but it allows the use of domain accounts, HTTPS, etc.
+The provider essentially just "shells out" to PowerShell and performs the actual work over a WinRM session, relying on the user's current Windows login context for authentication. Currently Windows only, and with support for CNAME and A records only.
 
-# Using the Provider
+## Compatability
+
+Terraform 0.12. 
+
+## Installing / Building
+
+Under normal usage, just include this provider in your Terraform project and it will be installed during `terraform init`.
+
+To hack on the plugin, install it in your `GOPATH`:
+
+0. Make sure you have $GOPATH set ($env:GOPATH='c:\wip\go' on Windows, etc)
+1. go get github.com\protolabs-oss\terraform-provider-windns
+2. cd github.com\protolabs-oss\terraform-provider-windns
+3. go build
+
+Or, try the `Install.ps1` Powershell script. It will placed in `C:\go`.
+
+The provider currently uses version 0.12.0 of the Terraform SDK.
+
+## Using the Provider
 
 ### Example
 
@@ -45,8 +64,4 @@ resource "windns" "dnscname" {
 }
 ```
 
-# Building
-0. Make sure you have $GOPATH set ($env:GOPATH='c:\wip\go' on Windows, etc)
-1. go get github.com\portofportland\terraform-provider-windns
-2. cd github.com\portofportland\terraform-provider-windns
-3. go build
+

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$GOPATH="$($env:HOME)\go",
-  [string]$GITHUB_USER="portofportland",
+  [string]$GITHUB_USER="protolabs-oss",
   [string]$PROVIDER_NAME='terraform-provider-windns',
   [switch]$skipGet = $false
 )
