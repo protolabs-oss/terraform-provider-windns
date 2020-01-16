@@ -1,6 +1,6 @@
 # Terraform Windows DNS Provider
 
-![](https://github.com/protolabs-oss/terraform-provider-windns/workflows/Go/badge.svg)
+![](https://github.com/protolabs-oss/terraform-provider-windns/workflows/Go-Win/badge.svg)
 
 This is the repository for a Terraform Windows DNS Provider, which can be used to create DNS records in Microsoft Windows DNS.
 
