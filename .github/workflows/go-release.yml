@@ -1,6 +1,6 @@
 # Make a release with a build artifact and release binary
 # when we create a tag
-name: Go-Release
+name: Release
 on:
   push:
     tags:
