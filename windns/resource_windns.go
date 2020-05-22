@@ -119,8 +119,7 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 	record_type := d.Get("record_type").(string)
 	record_name := d.Get("record_name").(string)
 
-	//Get-DnsServerResourceRecord -ZoneName "contoso.com" -Name "Host03" -RRType "A"
-	var psCommand string = "try { $record = Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop } catch { $record = '''' }; if ($record) { write-host 'RECORD_FOUND' }"
+	var psCommand string = "Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop"
 	_, err := runpwsh.RunPowershellCommand(psCommand)
 	if err != nil {
 		if !strings.Contains(err.Error(), "ObjectNotFound") {
