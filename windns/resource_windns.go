@@ -21,10 +21,10 @@ type DNSRecord struct {
 }
 
 var createTemplate = `
-try { 
-    $newRecord = $record = Get-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -RRType '{{.RecordType}}' -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -ErrorAction Stop 
-} catch { $record = $null }; 
-if ($record -and $record.RecordType -eq '{{.RecordType}}') { 
+try {
+    $newRecord = $record = Get-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -RRType '{{.RecordType}}' -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -ErrorAction Stop
+} catch { $record = $null };
+if ($record -and $record.RecordType -eq '{{.RecordType}}') {
     Write-Host 'Existing Record Found, Modifying record.'
     Switch ('{{.RecordType}}')
     {
@@ -129,7 +129,7 @@ func resourceWinDNSRecordCreate(d *schema.ResourceData, m interface{}) error {
 
 	d.SetId(record.Id)
 
-	return nil
+	return resourceWinDNSRecordRead(d, m)
 }
 
 func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
