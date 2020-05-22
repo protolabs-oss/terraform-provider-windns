@@ -20,31 +20,6 @@ type DNSRecord struct {
 	DomainController string
 }
 
-var createTemplate = `
-try {
-    $newRecord = $record = Get-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -RRType '{{.RecordType}}' -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -ErrorAction Stop
-} catch { $record = $null };
-if ($record -and $record.RecordType -eq '{{.RecordType}}') {
-    Write-Host 'Existing Record Found, Modifying record.'
-    Switch ('{{.RecordType}}')
-    {
-        'A'     { $newRecord.RecordData.IPv4Address = '{{.IPv4Address }}' }
-        'CNAME' { $newRecord.RecordData.HostNameAlias = '{{.HostnameAlias}}' }
-    }
-    Set-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -OldInputObject $record -NewInputObject $newRecord -PassThru -ComputerName '{{.DomainController}}'
-}
-else {
-    if ($record) {
-        Remove-DnsServerResourceRecord -InputObject $record -ZoneName '{{.ZoneName}}' -ComputerName '{{.DomainController}}' -PassThru -Force
-    }
-    Write-Host 'Creating record.'
-    Switch ('{{.RecordType}}')
-    {
-        'A'     { Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -IPv4Address '{{.IPv4Address}}' }
-        'CNAME' { Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -HostNameAlias '{{.HostnameAlias}}' }
-    }
-}`
-
 func resourceWinDNSRecord() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceWinDNSRecordCreate,
@@ -94,6 +69,22 @@ func resourceWinDNSRecordCreate(d *schema.ResourceData, m interface{}) error {
 		HostnameAlias:    d.Get("hostnamealias").(string),
 		DomainController: client.domain_controller,
 	}
+	var createTemplate = ""
+
+	switch record.RecordType {
+	case "A":
+		if record.IPv4Address == "" {
+			return errors.New("Must provide ipv4address if record_type is 'A'")
+		}
+		createTemplate = "Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -IPv4Address '{{.IPv4Address}}'"
+	case "CNAME":
+		if record.HostnameAlias == "" {
+			return errors.New("Must provide hostnamealias if record_type is 'CNAME'")
+		}
+		createTemplate = "Add-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -{{.RecordType}} -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -HostNameAlias '{{.HostnameAlias}}'"
+	default:
+		return errors.New("Unknown record type. This provider currently only supports 'A' and 'CNAME' records")
+	}
 
 	t := template.New("CreateTemplate")
 	t, err := t.Parse(createTemplate)
@@ -107,19 +98,6 @@ func resourceWinDNSRecordCreate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	createCommand := createComandBuffer.String()
-
-	switch record.RecordType {
-	case "A":
-		if record.IPv4Address == "" {
-			return errors.New("Must provide ipv4address if record_type is 'A'")
-		}
-	case "CNAME":
-		if record.HostnameAlias == "" {
-			return errors.New("Must provide hostnamealias if record_type is 'CNAME'")
-		}
-	default:
-		return errors.New("Unknown record type. This provider currently only supports 'A' and 'CNAME' records.")
-	}
 
 	_, err = runpwsh.RunPowershellCommand(createCommand)
 	if err != nil {
@@ -159,6 +137,21 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 	d.SetId(id)
 
 	return nil
+}
+
+func resourceWinDNSRecordUpdate(d *schema.ResourceData, m interface{}) error {
+
+	// preparing to separate update from create process
+	// 	if ($record -and $record.RecordType -eq '{{.RecordType}}') {
+	//     Write-Host 'Existing Record Found, Modifying record.'
+	//     Switch ('{{.RecordType}}')
+	//     {
+	//         'A'     { $newRecord.RecordData.IPv4Address = '{{.IPv4Address }}' }
+	//         'CNAME' { $newRecord.RecordData.HostNameAlias = '{{.HostnameAlias}}' }
+	//     }
+	//     Set-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -OldInputObject $record -NewInputObject $newRecord -PassThru -ComputerName '{{.DomainController}}'
+	// }
+	return resourceWinDNSRecordRead(d, m)
 }
 
 func resourceWinDNSRecordDelete(d *schema.ResourceData, m interface{}) error {
