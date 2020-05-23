@@ -142,7 +142,7 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 	if record_type == "A" {
 		d.Set("ipv4address", out)
 	} else if record_type == "CNAME" {
-		d.Set("hostnamealias", out)
+		d.Set("hostnamealias", strings.TrimSuffix(out, "."))
 	}
 
 	var id string = zone_name + "_" + record_name + "_" + record_type
