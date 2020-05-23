@@ -119,17 +119,30 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 	record_type := d.Get("record_type").(string)
 	record_name := d.Get("record_name").(string)
 
-	var psCommand string = "Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop"
-	_, err := runpwsh.RunPowershellCommand(psCommand)
+	var psCommand string = ""
+	if record_type == "A" {
+		psCommand = "$record = Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop; $record.RecordData.IPv4Address.IPAddressToString"
+	} else if record_type == "CNAME" {
+		psCommand = "$record = Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop; $record.RecordData.HostNameAlias"
+	}
+	out, err := runpwsh.RunPowershellCommand(psCommand)
 	if err != nil {
 		if !strings.Contains(err.Error(), "ObjectNotFound") {
 			//something bad happened
 			return err
-		} else {
-			//not able to find the record - this is an error but ok
-			d.SetId("")
-			return nil
 		}
+		//not able to find the record - this is an error but ok
+		d.SetId("")
+		return nil
+	}
+	if out == "" {
+		d.SetId("")
+		return nil
+	}
+	if record_type == "A" {
+		d.Set("ipv4address", out)
+	} else if record_type == "CNAME" {
+		d.Set("hostnamealias", out)
 	}
 
 	var id string = zone_name + "_" + record_name + "_" + record_type
