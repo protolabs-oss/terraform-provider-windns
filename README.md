@@ -1,10 +1,29 @@
 # Terraform Windows DNS Provider
 
-This is the repository for a Terraform Windows DNS Provider, which you can use to create DNS records in Microsoft Windows DNS.
+![](https://github.com/protolabs-oss/terraform-provider-windns/workflows/Go-Win/badge.svg)
 
-The provider uses the [github.com/gorillalabs/go-powershell/backend](github.com/gorillalabs/go-powershell/backend) package to "shell out" to PowerShell, fire up a WinRM session, and perform the actual DNS work. I made this decision because the Go WinRM packages I was able to find only supported WinRM in Basic/Unencrypted mode, which is not doable in our environment. Shelling out to PowerShell is admittedly ugly, but it allows the use of domain accounts, HTTPS, etc.
+This is the repository for a Terraform Windows DNS Provider, which can be used to create DNS records in Microsoft Windows DNS.
 
-# Using the Provider
+The provider essentially just "shells out" to PowerShell and performs the actual work over a WinRM session, relying on the user's current Windows login context for authentication. Currently Windows only, and with support for CNAME and A records only.
+
+## Compatability
+
+Terraform 0.12. 
+
+## Installing / Building
+
+Build and install the provider with `Go`:
+
+0. Make sure you have `Go` installed and `$GOPATH` set ($env:GOPATH='c:\go' for example)
+1. Run `go get github.com/protolabs-oss/terraform-provider-windns`
+2. Run `go build`
+3. Copy the file created at `$GOPATH/bin/terraform-provider-windns.exe` into your Terraform plugins directory, as described in  [Terraform's plugin instructions](https://www.terraform.io/docs/plugins/basics.html#installing-plugins). 
+
+Or, try the `Install.ps1` Powershell script. It assumes your `$GOPATH` is `C:\go`.
+
+The provider currently uses version 0.12.0 of the Terraform SDK.
+
+## Using the Provider
 
 ### Example
 
@@ -45,8 +64,4 @@ resource "windns" "dnscname" {
 }
 ```
 
-# Building
-0. Make sure you have $GOPATH set ($env:GOPATH='c:\wip\go' on Windows, etc)
-1. go get github.com\portofportland\terraform-provider-windns
-2. cd github.com\portofportland\terraform-provider-windns
-3. go build
+
