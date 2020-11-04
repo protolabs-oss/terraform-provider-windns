@@ -114,18 +114,50 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 	//convert the interface so we can use the variables like username, etc
 	client := m.(*DNSClient)
 
-	domain_controller := client.domain_controller
-	zone_name := d.Get("zone_name").(string)
-	record_type := d.Get("record_type").(string)
-	record_name := d.Get("record_name").(string)
-
-	var psCommand string = ""
-	if record_type == "A" {
-		psCommand = "$record = Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop; $record.RecordData.IPv4Address.IPAddressToString"
-	} else if record_type == "CNAME" {
-		psCommand = "$record = Get-DnsServerResourceRecord -ZoneName " + zone_name + " -RRType " + record_type + " -Name " + record_name + " -ComputerName " + domain_controller + " -ErrorAction Stop; $record.RecordData.HostNameAlias"
+	record := DNSRecord{
+		Id:               d.Get("zone_name").(string) + "_" + d.Get("record_name").(string) + "_" + d.Get("record_type").(string),
+		ZoneName:         d.Get("zone_name").(string),
+		RecordName:       d.Get("record_name").(string),
+		RecordType:       d.Get("record_type").(string),
+		IPv4Address:      d.Get("ipv4address").(string),
+		HostnameAlias:    d.Get("hostnamealias").(string),
+		DomainController: client.domain_controller,
 	}
-	out, err := runpwsh.RunPowershellCommand(psCommand)
+
+	readTemplate := `
+		$name = '{{.RecordName}}'
+		$records = Get-DnsServerResourceRecord -ZoneName '{{.ZoneName}}' -RRType '{{.RecordType}}' -Name '{{.RecordName}}' -ComputerName '{{.DomainController}}' -ErrorAction Stop
+		$record = $records | Where-Object { $_.HostName -eq $name }
+
+		if ('A' -eq '{{.RecordType}}'.ToUpper())
+		{
+			$record.RecordData.IPv4Address.IpAddressToString
+		}
+		elseif ('CNAME' -eq '{{.RecordType}}'.ToUpper())
+		{
+			$record.RecordData.HostNameAlias
+		}
+		else
+		{
+			throw 'Unsupported Record Type: {{.RecordType}}'
+		}
+	`
+
+	t := template.New("ReadTemplate")
+	t, err := t.Parse(readTemplate)
+	if err != nil {
+		// powershell exception encoutered.
+		return err
+	}
+
+	var readComandBuffer bytes.Buffer
+	if err := t.Execute(&readComandBuffer, record); err != nil {
+		return err
+	}
+
+	readCommand := readComandBuffer.String()
+
+	out, err := runpwsh.RunPowershellCommand(readCommand)
 	if err != nil {
 		if !strings.Contains(err.Error(), "ObjectNotFound") {
 			//something bad happened
@@ -135,18 +167,18 @@ func resourceWinDNSRecordRead(d *schema.ResourceData, m interface{}) error {
 		d.SetId("")
 		return nil
 	}
+
 	if out == "" {
 		d.SetId("")
 		return nil
 	}
-	if record_type == "A" {
+	if record.RecordType == "A" {
 		d.Set("ipv4address", out)
-	} else if record_type == "CNAME" {
+	} else if record.RecordType == "CNAME" {
 		d.Set("hostnamealias", strings.TrimSuffix(out, "."))
 	}
 
-	var id string = zone_name + "_" + record_name + "_" + record_type
-	d.SetId(id)
+	d.SetId(record.Id)
 
 	return nil
 }
